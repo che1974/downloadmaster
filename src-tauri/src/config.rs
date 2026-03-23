@@ -8,11 +8,19 @@ pub struct AppConfig {
     pub schedule_cron: String,
     pub stale_threshold_days: u32,
     pub ai_enabled: bool,
+    pub ai_provider: AiProvider,
     pub ai_api_key: String,
     pub ai_model: String,
     pub theme: Theme,
     pub language: String,
     pub archive_dir: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum AiProvider {
+    Anthropic,
+    Openai,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,6 +51,7 @@ impl Default for AppConfig {
             schedule_cron: "0 23 * * *".into(),
             stale_threshold_days: 90,
             ai_enabled: false,
+            ai_provider: AiProvider::Anthropic,
             ai_api_key: String::new(),
             ai_model: "claude-haiku-4-5-20251001".into(),
             theme: Theme::System,

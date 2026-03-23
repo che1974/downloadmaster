@@ -128,12 +128,27 @@ export function SettingsView() {
             {config.ai_enabled && (
               <>
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Provider</label>
+                  <select
+                    value={config.ai_provider}
+                    onChange={(e) => {
+                      const provider = e.target.value as AppConfig["ai_provider"];
+                      const model = provider === "anthropic" ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
+                      setConfig({ ...config, ai_provider: provider, ai_model: model, ai_api_key: "" });
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="openai">OpenAI (GPT)</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">API Key</label>
                   <input
                     type="password"
                     value={config.ai_api_key}
                     onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
-                    placeholder="sk-ant-..."
+                    placeholder={config.ai_provider === "anthropic" ? "sk-ant-..." : "sk-..."}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -144,8 +159,19 @@ export function SettingsView() {
                     onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-                    <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                    {config.ai_provider === "anthropic" ? (
+                      <>
+                        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                        <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                        <option value="gpt-4.1">GPT-4.1</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </>

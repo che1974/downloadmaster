@@ -28,26 +28,20 @@ pub fn quick_categorize(files: &[FileRecord], db: &Database) -> Result<u64, Stri
     Ok(count)
 }
 
-/// Tier 2: Batch analysis via Claude API
+/// Tier 2: Batch analysis via AI API (Anthropic or OpenAI)
 pub async fn batch_analyze(files: &[FileRecord], config: &AppConfig) -> Result<Vec<FileAnalysis>, String> {
     if files.is_empty() {
         return Ok(vec![]);
     }
 
-    let file_list: Vec<String> = files
-        .iter()
-        .map(|f| {
-            format!(
-                "- id:{} name:\"{}\" ext:{} size:{}",
-                f.id,
-                f.filename,
-                f.extension.as_deref().unwrap_or("none"),
-                format_size(f.size_bytes)
-            )
-        })
-        .collect();
+    use crate::config::AiProvider;
+    match config.ai_provider {
+        AiProvider::Anthropic => batch_analyze_anthropic(files, config).await,
+        AiProvider::Openai => batch_analyze_openai(files, config).await,
+    }
+}
 
-    let system_prompt = r#"You are a file categorization assistant. Analyze file names and metadata to assign categories and tags.
+const SYSTEM_PROMPT: &str = r#"You are a file categorization assistant. Analyze file names and metadata to assign categories and tags.
 
 Available categories: Documents, Images, Archives, Code, Video, Audio, Installers, Firmware, Data, Design, Fonts, Ebooks, Presentations, Spreadsheets, Other
 
@@ -60,14 +54,44 @@ Rules:
 Response format:
 [{"id": 123, "category": "Documents", "tags": ["report", "pdf"], "summary": "PDF document, likely a report"}]"#;
 
-    let user_prompt = format!("Categorize these files:\n{}", file_list.join("\n"));
+fn build_user_prompt(files: &[FileRecord]) -> String {
+    let file_list: Vec<String> = files
+        .iter()
+        .map(|f| {
+            format!(
+                "- id:{} name:\"{}\" ext:{} size:{}",
+                f.id,
+                f.filename,
+                f.extension.as_deref().unwrap_or("none"),
+                format_size(f.size_bytes)
+            )
+        })
+        .collect();
+    format!("Categorize these files:\n{}", file_list.join("\n"))
+}
 
+fn parse_analyses(content_text: &str) -> Result<Vec<FileAnalysis>, String> {
+    let analyses: Vec<ApiFileResult> = serde_json::from_str(content_text)
+        .map_err(|e| format!("Failed to parse AI response JSON: {}. Content: {}", e, content_text))?;
+
+    Ok(analyses
+        .into_iter()
+        .map(|a| FileAnalysis {
+            file_id: a.id,
+            category: a.category,
+            tags: a.tags,
+            summary: a.summary,
+        })
+        .collect())
+}
+
+async fn batch_analyze_anthropic(files: &[FileRecord], config: &AppConfig) -> Result<Vec<FileAnalysis>, String> {
     let request_body = serde_json::json!({
         "model": config.ai_model,
         "max_tokens": 1024,
-        "system": system_prompt,
+        "system": SYSTEM_PROMPT,
         "messages": [
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": build_user_prompt(files)}
         ]
     });
 
@@ -80,12 +104,12 @@ Response format:
         .json(&request_body)
         .send()
         .await
-        .map_err(|e| format!("API request failed: {}", e))?;
+        .map_err(|e| format!("Anthropic API request failed: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("API error {}: {}", status, body));
+        return Err(format!("Anthropic API error {}: {}", status, body));
     }
 
     let response_json: serde_json::Value = response
@@ -93,28 +117,53 @@ Response format:
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    // Extract text content from Claude response
     let content_text = response_json["content"]
         .as_array()
         .and_then(|arr| arr.first())
         .and_then(|block| block["text"].as_str())
-        .ok_or("No text content in response")?;
+        .ok_or("No text content in Anthropic response")?;
 
-    // Parse the JSON array from the response
-    let analyses: Vec<ApiFileResult> = serde_json::from_str(content_text)
-        .map_err(|e| format!("Failed to parse AI response JSON: {}. Content: {}", e, content_text))?;
+    parse_analyses(content_text)
+}
 
-    let results: Vec<FileAnalysis> = analyses
-        .into_iter()
-        .map(|a| FileAnalysis {
-            file_id: a.id,
-            category: a.category,
-            tags: a.tags,
-            summary: a.summary,
-        })
-        .collect();
+async fn batch_analyze_openai(files: &[FileRecord], config: &AppConfig) -> Result<Vec<FileAnalysis>, String> {
+    let request_body = serde_json::json!({
+        "model": config.ai_model,
+        "max_tokens": 1024,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_user_prompt(files)}
+        ]
+    });
 
-    Ok(results)
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", config.ai_api_key))
+        .header("content-type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("OpenAI API request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("OpenAI API error {}: {}", status, body));
+    }
+
+    let response_json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let content_text = response_json["choices"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice["message"]["content"].as_str())
+        .ok_or("No content in OpenAI response")?;
+
+    parse_analyses(content_text)
 }
 
 #[derive(Debug, Deserialize)]
