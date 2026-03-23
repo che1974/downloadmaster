@@ -19,7 +19,7 @@ src-tauri/gen/
 *~
 .DS_Store
 
-# AI assistant configs
+# Editor and tool configs
 CLAUDE.md
 .claude/
 .claude.json
@@ -27,6 +27,10 @@ CLAUDE.md
 .cursorrules
 .cursor/
 .github/copilot-instructions.md
+
+# Internal docs
+*.docx
+PROJECT_PLAN.md
 
 # Logs
 *.log
