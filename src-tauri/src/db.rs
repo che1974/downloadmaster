@@ -185,6 +185,157 @@ impl Database {
         })
     }
 
+    // --- Sort Rules CRUD ---
+
+    pub fn get_rules(&self) -> Result<Vec<crate::sorter::SortRule>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, pattern, target_dir, priority, enabled FROM sort_rules ORDER BY priority ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(crate::sorter::SortRule {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                pattern: row.get(2)?,
+                target_dir: row.get(3)?,
+                priority: row.get(4)?,
+                enabled: row.get::<_, i32>(5)? != 0,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn create_rule(&self, name: &str, pattern: &str, target_dir: &str, priority: i32) -> Result<i64> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO sort_rules (name, pattern, target_dir, priority) VALUES (?1, ?2, ?3, ?4)",
+            params![name, pattern, target_dir, priority],
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn update_rule(&self, id: i64, name: &str, pattern: &str, target_dir: &str, priority: i32) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE sort_rules SET name = ?1, pattern = ?2, target_dir = ?3, priority = ?4 WHERE id = ?5",
+            params![name, pattern, target_dir, priority, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_rule(&self, id: i64) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM sort_rules WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn toggle_rule(&self, id: i64, enabled: bool) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE sort_rules SET enabled = ?1 WHERE id = ?2",
+            params![enabled as i32, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn rules_count(&self) -> Result<u64> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row("SELECT COUNT(*) FROM sort_rules", [], |row| row.get(0))
+    }
+
+    pub fn seed_default_rules(&self) -> Result<()> {
+        if self.rules_count()? > 0 {
+            return Ok(());
+        }
+        for (name, pattern, target_dir, priority) in crate::sorter::default_rules() {
+            self.create_rule(&name, &pattern, &target_dir, priority)?;
+        }
+        Ok(())
+    }
+
+    // --- Actions Log ---
+
+    pub fn log_action(&self, file_id: i64, action: &str, from_path: &str, to_path: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO actions_log (file_id, action, from_path, to_path, performed_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![file_id, action, from_path, to_path, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_actions(&self, limit: u32, offset: u32) -> Result<Vec<ActionRecord>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT a.id, a.file_id, a.action, a.from_path, a.to_path, a.performed_at, a.undoable,
+                    COALESCE(f.filename, '')
+             FROM actions_log a
+             LEFT JOIN files f ON a.file_id = f.id
+             ORDER BY a.performed_at DESC
+             LIMIT ?1 OFFSET ?2",
+        )?;
+        let rows = stmt.query_map(params![limit, offset], |row| {
+            Ok(ActionRecord {
+                id: row.get(0)?,
+                file_id: row.get(1)?,
+                action: row.get(2)?,
+                from_path: row.get(3)?,
+                to_path: row.get(4)?,
+                performed_at: row.get(5)?,
+                undoable: row.get::<_, i32>(6)? != 0,
+                filename: row.get(7)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn get_action(&self, id: i64) -> Result<ActionRecord> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT a.id, a.file_id, a.action, a.from_path, a.to_path, a.performed_at, a.undoable,
+                    COALESCE(f.filename, '')
+             FROM actions_log a
+             LEFT JOIN files f ON a.file_id = f.id
+             WHERE a.id = ?1",
+            params![id],
+            |row| {
+                Ok(ActionRecord {
+                    id: row.get(0)?,
+                    file_id: row.get(1)?,
+                    action: row.get(2)?,
+                    from_path: row.get(3)?,
+                    to_path: row.get(4)?,
+                    performed_at: row.get(5)?,
+                    undoable: row.get::<_, i32>(6)? != 0,
+                    filename: row.get(7)?,
+                })
+            },
+        )
+    }
+
+    pub fn mark_action_undone(&self, id: i64) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE actions_log SET undoable = 0 WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_file_path(&self, id: i64, new_path: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let filename = std::path::Path::new(new_path)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        conn.execute(
+            "UPDATE files SET path = ?1, filename = ?2 WHERE id = ?3",
+            params![new_path, filename, id],
+        )?;
+        Ok(())
+    }
+
     pub fn remove_missing_files(&self, existing_paths: &[String]) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
         if existing_paths.is_empty() {
@@ -244,4 +395,16 @@ pub struct Stats {
     pub stale_files: u64,
     pub duplicate_groups: u64,
     pub categories: Vec<CategoryStat>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ActionRecord {
+    pub id: i64,
+    pub file_id: Option<i64>,
+    pub action: String,
+    pub from_path: Option<String>,
+    pub to_path: Option<String>,
+    pub performed_at: String,
+    pub undoable: bool,
+    pub filename: String,
 }

@@ -1,6 +1,9 @@
 import { Sidebar } from "./components/Sidebar";
 import { DashboardView } from "./views/DashboardView";
 import { FilesView } from "./views/FilesView";
+import { RulesView } from "./views/RulesView";
+import { HistoryView } from "./views/HistoryView";
+import { SettingsView } from "./views/SettingsView";
 import { PlaceholderView } from "./views/PlaceholderView";
 import { useAppStore } from "./store/useAppStore";
 
@@ -14,13 +17,13 @@ function App() {
       case "files":
         return <FilesView />;
       case "rules":
-        return <PlaceholderView title="Sort Rules" description="Rule management will be available in Phase 2." />;
+        return <RulesView />;
       case "cleanup":
         return <PlaceholderView title="Cleanup" description="Duplicate detection and cleanup will be available in Phase 4." />;
       case "history":
-        return <PlaceholderView title="History" description="Action history with undo will be available in Phase 2." />;
+        return <HistoryView />;
       case "settings":
-        return <PlaceholderView title="Settings" description="App settings will be available in Phase 2." />;
+        return <SettingsView />;
     }
   };
 

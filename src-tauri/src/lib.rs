@@ -2,12 +2,17 @@ mod commands;
 mod config;
 mod db;
 mod scanner;
+mod sorter;
+mod watcher;
 
 use db::Database;
+use std::sync::Mutex;
 use tauri::Manager;
+use watcher::FileWatcher;
 
 pub struct AppState {
     pub db: Database,
+    pub watcher: Mutex<FileWatcher>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -30,7 +35,13 @@ pub fn run() {
             let database = Database::new(app_data_dir)
                 .expect("failed to initialize database");
 
-            app.manage(AppState { db: database });
+            // Seed default sort rules on first run
+            database.seed_default_rules().ok();
+
+            app.manage(AppState {
+                db: database,
+                watcher: Mutex::new(FileWatcher::new()),
+            });
 
             Ok(())
         })
@@ -40,6 +51,19 @@ pub fn run() {
             commands::get_stats,
             commands::get_config,
             commands::save_config,
+            commands::get_rules,
+            commands::create_rule,
+            commands::update_rule,
+            commands::delete_rule,
+            commands::toggle_rule,
+            commands::seed_default_rules,
+            commands::preview_sort,
+            commands::execute_sort,
+            commands::get_actions,
+            commands::undo_action,
+            commands::start_watcher,
+            commands::stop_watcher,
+            commands::watcher_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

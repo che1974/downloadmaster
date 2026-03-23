@@ -42,4 +42,32 @@ export interface AppConfig {
   archive_dir: string;
 }
 
+export interface SortRule {
+  id: number;
+  name: string;
+  pattern: string;
+  target_dir: string;
+  priority: number;
+  enabled: boolean;
+}
+
+export interface SortAction {
+  file_id: number;
+  filename: string;
+  from_path: string;
+  to_path: string;
+  rule_name: string;
+}
+
+export interface ActionRecord {
+  id: number;
+  file_id: number | null;
+  action: string;
+  from_path: string | null;
+  to_path: string | null;
+  performed_at: string;
+  undoable: boolean;
+  filename: string;
+}
+
 export type NavItem = "dashboard" | "files" | "rules" | "cleanup" | "history" | "settings";
