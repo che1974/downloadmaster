@@ -64,6 +64,17 @@ export async function undoAction(id: number): Promise<void> {
   return invoke("undo_action", { id });
 }
 
+// AI Analysis
+export interface AnalysisResult {
+  quick_categorized: number;
+  api_categorized: number;
+  total_uncategorized: number;
+}
+
+export async function analyzeFiles(): Promise<AnalysisResult> {
+  return invoke("analyze_files");
+}
+
 // Watcher
 export async function startWatcher(): Promise<void> {
   return invoke("start_watcher");

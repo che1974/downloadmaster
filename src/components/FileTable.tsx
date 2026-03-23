@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { ArrowUpDown } from "lucide-react";
 import type { FileRecord } from "../types";
+import { TagBadge } from "./TagBadge";
 
 const columnHelper = createColumnHelper<FileRecord>();
 
@@ -59,13 +60,7 @@ const columns = [
     header: "Category",
     cell: (info) => {
       const val = info.getValue();
-      return val ? (
-        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
-          {val}
-        </span>
-      ) : (
-        <span className="text-slate-300">—</span>
-      );
+      return val ? <TagBadge category={val} /> : <span className="text-slate-300">—</span>;
     },
   }),
 ];

@@ -1,3 +1,4 @@
+mod ai_client;
 mod commands;
 mod config;
 mod db;
@@ -61,6 +62,7 @@ pub fn run() {
             commands::execute_sort,
             commands::get_actions,
             commands::undo_action,
+            commands::analyze_files,
             commands::start_watcher,
             commands::stop_watcher,
             commands::watcher_status,

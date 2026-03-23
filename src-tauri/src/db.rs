@@ -336,6 +336,48 @@ impl Database {
         Ok(())
     }
 
+    // --- AI Fields ---
+
+    pub fn update_ai_fields(&self, id: i64, category: &str, tags_json: &str, summary: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE files SET ai_category = ?1, ai_tags = ?2, ai_summary = ?3 WHERE id = ?4",
+            params![category, tags_json, summary, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_uncategorized_files(&self, limit: u32) -> Result<Vec<FileRecord>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, path, filename, extension, size_bytes, mime_type, hash_xxh3,
+                    created_at, modified_at, scanned_at, ai_category, ai_tags, ai_summary, status
+             FROM files
+             WHERE status = 'active' AND ai_category IS NULL
+             ORDER BY modified_at DESC
+             LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(FileRecord {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                filename: row.get(2)?,
+                extension: row.get(3)?,
+                size_bytes: row.get(4)?,
+                mime_type: row.get(5)?,
+                hash_xxh3: row.get(6)?,
+                created_at: row.get(7)?,
+                modified_at: row.get(8)?,
+                scanned_at: row.get(9)?,
+                ai_category: row.get(10)?,
+                ai_tags: row.get(11)?,
+                ai_summary: row.get(12)?,
+                status: row.get(13)?,
+            })
+        })?;
+        rows.collect()
+    }
+
     pub fn remove_missing_files(&self, existing_paths: &[String]) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
         if existing_paths.is_empty() {

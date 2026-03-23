@@ -17,6 +17,7 @@ tauri-build = { version = "2.5.6", features = [] }
 [dependencies]
 tauri = { version = "2.10.3", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-http = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
@@ -36,8 +37,9 @@ toml = "0.8"
 # Hashing (for future duplicate detection)
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
-# HTTP (for future AI integration)
+# HTTP (for AI integration)
 reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 # Utils
 chrono = { version = "0.4", features = ["serde"] }

@@ -1,3 +1,4 @@
+use crate::ai_client::{self, AnalysisResult};
 use crate::config::AppConfig;
 use crate::db::{ActionRecord, FileRecord, Stats};
 use crate::scanner;
@@ -100,6 +101,14 @@ pub fn get_actions(state: State<AppState>, limit: Option<u32>, offset: Option<u3
 #[tauri::command]
 pub fn undo_action(state: State<AppState>, id: i64) -> Result<(), String> {
     sorter::undo_move(id, &state.db)
+}
+
+// --- AI Analysis ---
+
+#[tauri::command]
+pub async fn analyze_files(state: State<'_, AppState>) -> Result<AnalysisResult, String> {
+    let config = AppConfig::load();
+    ai_client::analyze_all(&state.db, &config).await
 }
 
 // --- Watcher ---

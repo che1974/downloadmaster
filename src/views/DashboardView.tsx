@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { FileText, HardDrive, Clock, Copy, RefreshCw } from "lucide-react";
+import { FileText, HardDrive, Clock, Copy, RefreshCw, Sparkles } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useAppStore } from "../store/useAppStore";
 import { MetricCard } from "../components/MetricCard";
@@ -16,7 +16,7 @@ function formatSize(bytes: number): string {
 }
 
 export function DashboardView() {
-  const { files, stats, scanning, runScan, fetchFiles, fetchStats } = useAppStore();
+  const { files, stats, scanning, runScan, fetchFiles, fetchStats, analyzing, analysisResult, runAnalysis } = useAppStore();
 
   useEffect(() => {
     fetchFiles();
@@ -36,15 +36,33 @@ export function DashboardView() {
           <h2 className="text-xl font-semibold text-slate-900">Dashboard</h2>
           <p className="text-sm text-slate-500 mt-0.5">Overview of your Downloads folder</p>
         </div>
-        <button
-          onClick={runScan}
-          disabled={scanning}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
-        >
-          <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
-          {scanning ? "Scanning..." : "Scan"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={runAnalysis}
+            disabled={analyzing}
+            className="flex items-center gap-2 px-4 py-2 border border-violet-300 text-violet-700 rounded-lg text-sm font-medium hover:bg-violet-50 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            <Sparkles size={16} className={analyzing ? "animate-pulse" : ""} />
+            {analyzing ? "Analyzing..." : "Analyze"}
+          </button>
+          <button
+            onClick={runScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
+            {scanning ? "Scanning..." : "Scan"}
+          </button>
+        </div>
       </div>
+
+      {analysisResult && (
+        <div className="bg-violet-50 border border-violet-200 rounded-lg px-4 py-3 text-sm text-violet-700">
+          Analysis complete: {analysisResult.quick_categorized} categorized locally
+          {analysisResult.api_categorized > 0 && `, ${analysisResult.api_categorized} via AI`}
+          {analysisResult.total_uncategorized > 0 && `. ${analysisResult.total_uncategorized} still uncategorized`}
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4">
         <MetricCard

@@ -5,6 +5,7 @@ import {
   getRules, createRule, updateRule, deleteRule, toggleRule,
   previewSort, executeSort,
   getActions, undoAction as undoActionApi,
+  analyzeFiles, type AnalysisResult,
 } from "../hooks/useTauri";
 
 interface AppStore {
@@ -21,6 +22,10 @@ interface AppStore {
 
   // History
   actions: ActionRecord[];
+
+  // AI
+  analyzing: boolean;
+  analysisResult: AnalysisResult | null;
 
   setActiveNav: (nav: NavItem) => void;
   fetchFiles: () => Promise<void>;
@@ -42,6 +47,9 @@ interface AppStore {
   // History actions
   fetchActions: () => Promise<void>;
   undoAction: (id: number) => Promise<void>;
+
+  // AI actions
+  runAnalysis: () => Promise<void>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -54,6 +62,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   sortPreview: null,
   sorting: false,
   actions: [],
+  analyzing: false,
+  analysisResult: null,
 
   setActiveNav: (nav) => set({ activeNav: nav }),
 
@@ -143,5 +153,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
   undoAction: async (id) => {
     await undoActionApi(id);
     await Promise.all([get().fetchActions(), get().fetchFiles(), get().fetchStats()]);
+  },
+
+  // AI
+  runAnalysis: async () => {
+    set({ analyzing: true, analysisResult: null });
+    try {
+      const result = await analyzeFiles();
+      set({ analysisResult: result });
+      await get().fetchFiles();
+    } finally {
+      set({ analyzing: false });
+    }
   },
 }));

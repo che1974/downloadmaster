@@ -87,6 +87,46 @@ export function SettingsView() {
           />
         </div>
 
+        <div className="pt-2 border-t border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-800 mb-3">AI Analysis</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-slate-700">Enable AI categorization</label>
+              <input
+                type="checkbox"
+                checked={config.ai_enabled}
+                onChange={(e) => setConfig({ ...config, ai_enabled: e.target.checked })}
+                className="rounded cursor-pointer"
+              />
+            </div>
+            {config.ai_enabled && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    value={config.ai_api_key}
+                    onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
+                    placeholder="sk-ant-..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Model</label>
+                  <select
+                    value={config.ai_model}
+                    onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                    <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <div>
             <p className="text-sm font-medium text-slate-700">File Watcher</p>
