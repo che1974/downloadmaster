@@ -1,0 +1,42 @@
+[package]
+name = "downloadmaster"
+version = "0.1.0"
+description = "Intelligent Downloads Organizer"
+authors = ["Petro"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.6" }
+
+[dependencies]
+tauri = { version = "2.10.3" }
+tauri-plugin-log = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+
+# Database
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Filesystem
+walkdir = "2"
+filetime = "0.2"
+dirs = "5.0"
+
+# Config
+toml = "0.8"
+
+# Hashing (for future duplicate detection)
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+
+# HTTP (for future AI integration)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Utils
+chrono = { version = "0.4", features = ["serde"] }
