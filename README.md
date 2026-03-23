@@ -63,7 +63,7 @@ Windows: install [Visual Studio Build Tools](https://visualstudio.microsoft.com/
 ### Clone and install
 
 ```bash
-git clone https://github.com/petermozdev/downloadmaster.git
+git clone https://github.com/che1974/downloadmaster.git
 cd downloadmaster
 npm install
 ```
