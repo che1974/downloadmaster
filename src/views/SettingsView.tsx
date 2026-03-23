@@ -133,46 +133,77 @@ export function SettingsView() {
                     value={config.ai_provider}
                     onChange={(e) => {
                       const provider = e.target.value as AppConfig["ai_provider"];
-                      const model = provider === "anthropic" ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
-                      setConfig({ ...config, ai_provider: provider, ai_model: model, ai_api_key: "" });
+                      const defaults: Record<string, { model: string; url: string }> = {
+                        anthropic: { model: "claude-haiku-4-5-20251001", url: "" },
+                        openai: { model: "gpt-4o-mini", url: "" },
+                        ollama: { model: "llama3.2", url: "http://localhost:11434" },
+                      };
+                      const d = defaults[provider];
+                      setConfig({ ...config, ai_provider: provider, ai_model: d.model, ai_base_url: d.url, ai_api_key: "" });
                     }}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="anthropic">Anthropic (Claude)</option>
                     <option value="openai">OpenAI (GPT)</option>
+                    <option value="ollama">Ollama (Local)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">API Key</label>
-                  <input
-                    type="password"
-                    value={config.ai_api_key}
-                    onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
-                    placeholder={config.ai_provider === "anthropic" ? "sk-ant-..." : "sk-..."}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                {config.ai_provider !== "ollama" && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">API Key</label>
+                    <input
+                      type="password"
+                      value={config.ai_api_key}
+                      onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
+                      placeholder={config.ai_provider === "anthropic" ? "sk-ant-..." : "sk-..."}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+                {config.ai_provider === "ollama" && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Ollama URL</label>
+                    <input
+                      type="text"
+                      value={config.ai_base_url}
+                      onChange={(e) => setConfig({ ...config, ai_base_url: e.target.value })}
+                      placeholder="http://localhost:11434"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Make sure Ollama is running and the model is pulled.</p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Model</label>
-                  <select
-                    value={config.ai_model}
-                    onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {config.ai_provider === "anthropic" ? (
-                      <>
-                        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-                        <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-                        <option value="gpt-4.1">GPT-4.1</option>
-                      </>
-                    )}
-                  </select>
+                  {config.ai_provider === "ollama" ? (
+                    <input
+                      type="text"
+                      value={config.ai_model}
+                      onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
+                      placeholder="llama3.2"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <select
+                      value={config.ai_model}
+                      onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {config.ai_provider === "anthropic" ? (
+                        <>
+                          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                          <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="gpt-4o-mini">GPT-4o Mini</option>
+                          <option value="gpt-4o">GPT-4o</option>
+                          <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                          <option value="gpt-4.1">GPT-4.1</option>
+                        </>
+                      )}
+                    </select>
+                  )}
                 </div>
               </>
             )}

@@ -22,6 +22,8 @@ src-tauri/gen/
 # AI assistant configs
 CLAUDE.md
 .claude/
+.claude.json
+.claudeignore
 .cursorrules
 .cursor/
 .github/copilot-instructions.md

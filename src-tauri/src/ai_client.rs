@@ -28,7 +28,7 @@ pub fn quick_categorize(files: &[FileRecord], db: &Database) -> Result<u64, Stri
     Ok(count)
 }
 
-/// Tier 2: Batch analysis via AI API (Anthropic or OpenAI)
+/// Tier 2: Batch analysis via AI API (Anthropic, OpenAI, or Ollama)
 pub async fn batch_analyze(files: &[FileRecord], config: &AppConfig) -> Result<Vec<FileAnalysis>, String> {
     if files.is_empty() {
         return Ok(vec![]);
@@ -38,6 +38,7 @@ pub async fn batch_analyze(files: &[FileRecord], config: &AppConfig) -> Result<V
     match config.ai_provider {
         AiProvider::Anthropic => batch_analyze_anthropic(files, config).await,
         AiProvider::Openai => batch_analyze_openai(files, config).await,
+        AiProvider::Ollama => batch_analyze_ollama(files, config).await,
     }
 }
 
@@ -166,6 +167,50 @@ async fn batch_analyze_openai(files: &[FileRecord], config: &AppConfig) -> Resul
     parse_analyses(content_text)
 }
 
+async fn batch_analyze_ollama(files: &[FileRecord], config: &AppConfig) -> Result<Vec<FileAnalysis>, String> {
+    let base_url = if config.ai_base_url.is_empty() {
+        "http://localhost:11434".to_string()
+    } else {
+        config.ai_base_url.trim_end_matches('/').to_string()
+    };
+
+    let request_body = serde_json::json!({
+        "model": config.ai_model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_user_prompt(files)}
+        ],
+        "stream": false,
+        "format": "json"
+    });
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/api/chat", base_url))
+        .header("content-type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Ollama request failed (is Ollama running at {}?): {}", base_url, e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("Ollama error {}: {}", status, body));
+    }
+
+    let response_json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Ollama response: {}", e))?;
+
+    let content_text = response_json["message"]["content"]
+        .as_str()
+        .ok_or("No content in Ollama response")?;
+
+    parse_analyses(content_text)
+}
+
 #[derive(Debug, Deserialize)]
 struct ApiFileResult {
     id: i64,
@@ -181,9 +226,11 @@ pub async fn analyze_all(db: &Database, config: &AppConfig) -> Result<AnalysisRe
     // Tier 1: Quick categorization
     let quick_count = quick_categorize(&all_files, db)?;
 
-    // Tier 2: Batch API (only if AI is enabled and API key is set)
+    // Tier 2: Batch API (only if AI is enabled; Ollama doesn't need an API key)
     let mut api_count: u64 = 0;
-    if config.ai_enabled && !config.ai_api_key.is_empty() {
+    let has_credentials = !config.ai_api_key.is_empty()
+        || config.ai_provider == crate::config::AiProvider::Ollama;
+    if config.ai_enabled && has_credentials {
         let uncategorized = db.get_uncategorized_files(100).map_err(|e| e.to_string())?;
 
         // Process in batches of 20

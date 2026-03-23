@@ -10,6 +10,7 @@ pub struct AppConfig {
     pub ai_enabled: bool,
     pub ai_provider: AiProvider,
     pub ai_api_key: String,
+    pub ai_base_url: String,
     pub ai_model: String,
     pub theme: Theme,
     pub language: String,
@@ -21,6 +22,7 @@ pub struct AppConfig {
 pub enum AiProvider {
     Anthropic,
     Openai,
+    Ollama,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +55,7 @@ impl Default for AppConfig {
             ai_enabled: false,
             ai_provider: AiProvider::Anthropic,
             ai_api_key: String::new(),
+            ai_base_url: String::new(),
             ai_model: "claude-haiku-4-5-20251001".into(),
             theme: Theme::System,
             language: "en".into(),

@@ -35,8 +35,9 @@ export interface AppConfig {
   schedule_cron: string;
   stale_threshold_days: number;
   ai_enabled: boolean;
-  ai_provider: "anthropic" | "openai";
+  ai_provider: "anthropic" | "openai" | "ollama";
   ai_api_key: string;
+  ai_base_url: string;
   ai_model: string;
   theme: "light" | "dark" | "system";
   language: string;
