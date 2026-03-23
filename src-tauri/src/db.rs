@@ -378,6 +378,170 @@ impl Database {
         rows.collect()
     }
 
+    // --- Hashing & Cleanup ---
+
+    pub fn update_hash(&self, id: i64, hash: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE files SET hash_xxh3 = ?1 WHERE id = ?2",
+            params![hash, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_duplicates(&self) -> Result<Vec<DuplicateGroup>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT hash_xxh3, GROUP_CONCAT(id), COUNT(*) as cnt
+             FROM files
+             WHERE status = 'active' AND hash_xxh3 IS NOT NULL
+             GROUP BY hash_xxh3
+             HAVING cnt > 1
+             ORDER BY cnt DESC",
+        )?;
+
+        let mut groups = Vec::new();
+        let rows = stmt.query_map([], |row| {
+            let hash: String = row.get(0)?;
+            let ids_str: String = row.get(1)?;
+            Ok((hash, ids_str))
+        })?;
+
+        for row in rows {
+            let (hash, ids_str) = row?;
+            let ids: Vec<i64> = ids_str
+                .split(',')
+                .filter_map(|s| s.parse().ok())
+                .collect();
+
+            let mut files = Vec::new();
+            for id in &ids {
+                let mut file_stmt = conn.prepare(
+                    "SELECT id, path, filename, extension, size_bytes, mime_type, hash_xxh3,
+                            created_at, modified_at, scanned_at, ai_category, ai_tags, ai_summary, status
+                     FROM files WHERE id = ?1",
+                )?;
+                if let Ok(file) = file_stmt.query_row(params![id], |row| {
+                    Ok(FileRecord {
+                        id: row.get(0)?,
+                        path: row.get(1)?,
+                        filename: row.get(2)?,
+                        extension: row.get(3)?,
+                        size_bytes: row.get(4)?,
+                        mime_type: row.get(5)?,
+                        hash_xxh3: row.get(6)?,
+                        created_at: row.get(7)?,
+                        modified_at: row.get(8)?,
+                        scanned_at: row.get(9)?,
+                        ai_category: row.get(10)?,
+                        ai_tags: row.get(11)?,
+                        ai_summary: row.get(12)?,
+                        status: row.get(13)?,
+                    })
+                }) {
+                    files.push(file);
+                }
+            }
+
+            groups.push(DuplicateGroup { hash, files });
+        }
+
+        Ok(groups)
+    }
+
+    pub fn get_stale_files(&self, threshold_days: u32) -> Result<Vec<FileRecord>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, path, filename, extension, size_bytes, mime_type, hash_xxh3,
+                    created_at, modified_at, scanned_at, ai_category, ai_tags, ai_summary, status
+             FROM files
+             WHERE status = 'active' AND modified_at < datetime('now', '-' || ?1 || ' days')
+             ORDER BY modified_at ASC",
+        )?;
+        let rows = stmt.query_map(params![threshold_days], |row| {
+            Ok(FileRecord {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                filename: row.get(2)?,
+                extension: row.get(3)?,
+                size_bytes: row.get(4)?,
+                mime_type: row.get(5)?,
+                hash_xxh3: row.get(6)?,
+                created_at: row.get(7)?,
+                modified_at: row.get(8)?,
+                scanned_at: row.get(9)?,
+                ai_category: row.get(10)?,
+                ai_tags: row.get(11)?,
+                ai_summary: row.get(12)?,
+                status: row.get(13)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn get_large_files(&self, limit: u32) -> Result<Vec<FileRecord>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, path, filename, extension, size_bytes, mime_type, hash_xxh3,
+                    created_at, modified_at, scanned_at, ai_category, ai_tags, ai_summary, status
+             FROM files
+             WHERE status = 'active'
+             ORDER BY size_bytes DESC
+             LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(FileRecord {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                filename: row.get(2)?,
+                extension: row.get(3)?,
+                size_bytes: row.get(4)?,
+                mime_type: row.get(5)?,
+                hash_xxh3: row.get(6)?,
+                created_at: row.get(7)?,
+                modified_at: row.get(8)?,
+                scanned_at: row.get(9)?,
+                ai_category: row.get(10)?,
+                ai_tags: row.get(11)?,
+                ai_summary: row.get(12)?,
+                status: row.get(13)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn archive_file(&self, id: i64, archive_dir: &str) -> Result<String> {
+        let conn = self.conn.lock().unwrap();
+        let (path, filename): (String, String) = conn.query_row(
+            "SELECT path, filename FROM files WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+
+        let archive_path = std::path::Path::new(archive_dir);
+        std::fs::create_dir_all(archive_path)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+
+        let dest = crate::sorter::resolve_conflict_pub(&archive_path.join(&filename));
+        let dest_str = dest.to_string_lossy().to_string();
+
+        std::fs::rename(&path, &dest)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+
+        conn.execute(
+            "UPDATE files SET status = 'archived', path = ?1 WHERE id = ?2",
+            params![dest_str, id],
+        )?;
+
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO actions_log (file_id, action, from_path, to_path, performed_at) VALUES (?1, 'archived', ?2, ?3, ?4)",
+            params![id, path, dest_str, now],
+        )?;
+
+        Ok(dest_str)
+    }
+
     pub fn remove_missing_files(&self, existing_paths: &[String]) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
         if existing_paths.is_empty() {
@@ -449,4 +613,10 @@ pub struct ActionRecord {
     pub performed_at: String,
     pub undoable: bool,
     pub filename: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DuplicateGroup {
+    pub hash: String,
+    pub files: Vec<FileRecord>,
 }

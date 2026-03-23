@@ -35,7 +35,7 @@ const columns = [
   columnHelper.accessor("filename", {
     header: "Name",
     cell: (info) => (
-      <span className="font-medium text-slate-900 truncate block max-w-xs" title={info.getValue()}>
+      <span className="font-medium text-slate-900 dark:text-slate-100 truncate block max-w-xs" title={info.getValue()}>
         {info.getValue()}
       </span>
     ),
@@ -82,15 +82,15 @@ export function FileTable({ files }: FileTableProps) {
   });
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <table className="w-full text-sm text-left">
-        <thead className="bg-slate-50 border-b border-slate-200">
+        <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
               {hg.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer select-none"
+                  className="px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer select-none"
                   onClick={header.column.getToggleSortingHandler()}
                 >
                   <div className="flex items-center gap-1">
@@ -102,11 +102,11 @@ export function FileTable({ files }: FileTableProps) {
             </tr>
           ))}
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+            <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-4 py-3 text-slate-600">
+                <td key={cell.id} className="px-4 py-3 text-slate-600 dark:text-slate-300">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

@@ -2,6 +2,7 @@ mod ai_client;
 mod commands;
 mod config;
 mod db;
+mod hasher;
 mod scanner;
 mod sorter;
 mod watcher;
@@ -66,6 +67,11 @@ pub fn run() {
             commands::start_watcher,
             commands::stop_watcher,
             commands::watcher_status,
+            commands::hash_files,
+            commands::get_duplicates,
+            commands::get_stale_files,
+            commands::get_large_files,
+            commands::archive_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -33,8 +33,8 @@ export function DashboardView() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">Dashboard</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Overview of your Downloads folder</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Dashboard</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Overview of your Downloads folder</p>
         </div>
         <div className="flex gap-2">
           <button

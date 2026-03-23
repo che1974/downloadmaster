@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { FileRecord, Stats, AppConfig, SortRule, SortAction, ActionRecord } from "../types";
+import type { FileRecord, Stats, AppConfig, SortRule, SortAction, ActionRecord, DuplicateGroup } from "../types";
 
 export async function scanDirectory(): Promise<number> {
   return invoke("scan_directory");
@@ -86,4 +86,25 @@ export async function stopWatcher(): Promise<void> {
 
 export async function watcherStatus(): Promise<boolean> {
   return invoke("watcher_status");
+}
+
+// Cleanup
+export async function hashFiles(): Promise<number> {
+  return invoke("hash_files");
+}
+
+export async function getDuplicates(): Promise<DuplicateGroup[]> {
+  return invoke("get_duplicates");
+}
+
+export async function getStaleFiles(thresholdDays?: number): Promise<FileRecord[]> {
+  return invoke("get_stale_files", { thresholdDays });
+}
+
+export async function getLargeFiles(limit?: number): Promise<FileRecord[]> {
+  return invoke("get_large_files", { limit });
+}
+
+export async function archiveFiles(ids: number[]): Promise<number> {
+  return invoke("archive_files", { ids });
 }

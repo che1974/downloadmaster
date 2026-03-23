@@ -1,6 +1,7 @@
 use crate::ai_client::{self, AnalysisResult};
 use crate::config::AppConfig;
-use crate::db::{ActionRecord, FileRecord, Stats};
+use crate::db::{ActionRecord, DuplicateGroup, FileRecord, Stats};
+use crate::hasher;
 use crate::scanner;
 use crate::sorter::{self, SortAction, SortRule};
 use crate::AppState;
@@ -131,4 +132,41 @@ pub fn stop_watcher(state: State<AppState>) -> Result<(), String> {
 pub fn watcher_status(state: State<AppState>) -> bool {
     let watcher = state.watcher.lock().unwrap();
     watcher.is_running()
+}
+
+// --- Cleanup ---
+
+#[tauri::command]
+pub fn hash_files(state: State<AppState>) -> Result<u64, String> {
+    hasher::hash_all_files(&state.db)
+}
+
+#[tauri::command]
+pub fn get_duplicates(state: State<AppState>) -> Result<Vec<DuplicateGroup>, String> {
+    state.db.get_duplicates().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_stale_files(state: State<AppState>, threshold_days: Option<u32>) -> Result<Vec<FileRecord>, String> {
+    let days = threshold_days.unwrap_or(90);
+    state.db.get_stale_files(days).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_large_files(state: State<AppState>, limit: Option<u32>) -> Result<Vec<FileRecord>, String> {
+    let limit = limit.unwrap_or(50);
+    state.db.get_large_files(limit).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn archive_files(state: State<AppState>, ids: Vec<i64>) -> Result<u64, String> {
+    let config = AppConfig::load();
+    let mut count: u64 = 0;
+    for id in ids {
+        match state.db.archive_file(id, &config.archive_dir) {
+            Ok(_) => count += 1,
+            Err(e) => log::error!("Failed to archive file {}: {}", id, e),
+        }
+    }
+    Ok(count)
 }

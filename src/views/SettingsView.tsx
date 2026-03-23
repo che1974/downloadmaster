@@ -19,6 +19,19 @@ export function SettingsView() {
     setSaving(true);
     try {
       await saveConfig(config);
+      // Apply theme
+      const root = document.documentElement;
+      if (config.theme === "dark") {
+        root.classList.add("dark");
+      } else if (config.theme === "light") {
+        root.classList.remove("dark");
+      } else {
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+      }
       await runScan();
     } finally {
       setSaving(false);
@@ -75,6 +88,19 @@ export function SettingsView() {
             onChange={(e) => setConfig({ ...config, stale_threshold_days: parseInt(e.target.value) || 90 })}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Theme</label>
+          <select
+            value={config.theme}
+            onChange={(e) => setConfig({ ...config, theme: e.target.value as AppConfig["theme"] })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System</option>
+          </select>
         </div>
 
         <div>

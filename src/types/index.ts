@@ -70,4 +70,11 @@ export interface ActionRecord {
   filename: string;
 }
 
+export interface DuplicateGroup {
+  hash: string;
+  files: FileRecord[];
+}
+
+export type CleanupTab = "duplicates" | "stale" | "large";
+
 export type NavItem = "dashboard" | "files" | "rules" | "cleanup" | "history" | "settings";

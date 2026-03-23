@@ -165,6 +165,10 @@ fn single_glob_match(pattern: &str, text: &str) -> bool {
     pi == p_vec.len()
 }
 
+pub fn resolve_conflict_pub(path: &Path) -> PathBuf {
+    resolve_conflict(path)
+}
+
 fn resolve_conflict(path: &Path) -> PathBuf {
     if !path.exists() {
         return path.to_path_buf();
